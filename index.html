@@ -566,7 +566,7 @@
               const loadInitialData = async () => {
                   try {
                       const docSnap = await sourcesDocRef.get();
-                      if (docSnap.exists()) {
+                      if (docSnap.exists) {
                           const data = docSnap.data();
                           const savedSources = data.sourceList;
                           // Load sources if it's an array, otherwise load empty.
