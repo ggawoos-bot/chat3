@@ -117,33 +117,177 @@
         </svg>
       );
 
-      // --- New Component: SourceInfo ---
-      const SourceInfo = ({ isLoading, files }) => (
-          <div className="flex flex-col h-full bg-brand-surface rounded-lg p-4">
-              <h2 className="text-lg font-semibold text-brand-primary mb-3">자료 출처</h2>
-              {isLoading ? (
-                  <div className="flex flex-col items-center justify-center flex-1">
-                      <div className="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-                      <p className="text-brand-text-primary">문서 목록 확인 및 로딩 중...</p>
-                      <p className="text-sm text-brand-text-secondary">자료를 준비하고 있습니다.</p>
-                  </div>
-              ) : (
-                  <div>
-                      <p className="text-sm text-brand-text-secondary mb-4">
-                          챗봇은 아래 문서들을 기반으로 답변합니다.
-                      </p>
-                      <ul className="space-y-2">
-                          {files.map((file, index) => (
-                              <li key={index} className="flex items-center gap-2 text-brand-text-secondary text-sm">
-                                  <DocumentIcon className="w-5 h-5 flex-shrink-0" />
-                                  <span>{file}</span>
-                              </li>
-                          ))}
-                      </ul>
-                  </div>
-              )}
-          </div>
+      // --- Inlined from components/icons/LinkIcon.tsx ---
+      const LinkIcon = ({ className = "w-6 h-6" }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+        </svg>
       );
+
+      // --- Inlined from components/icons/GearIcon.tsx ---
+      const GearIcon = ({ className = "w-6 h-6" }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.438.995s.145.755.438.995l1.003.827c.48.398.668 1.03.26 1.431l-1.296 2.247a1.125 1.125 0 0 1-1.37.49l-1.217-.456c-.355-.133-.75-.072-1.075.124a6.57 6.57 0 0 1-.22.127c-.332.183-.582.495-.645.87l-.213 1.281c-.09.543-.56.94-1.11.94h-2.593c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.063-.374-.313-.686-.645-.87a6.52 6.52 0 0 1-.22-.127c-.324-.196-.72-.257-1.075-.124l-1.217.456a1.125 1.125 0 0 1-1.37-.49l-1.296-2.247a1.125 1.125 0 0 1 .26-1.431l1.003-.827c.293.24.438.613.438.995s-.145-.755-.438-.995l-1.003-.827a1.125 1.125 0 0 1-.26-1.431l1.296-2.247a1.125 1.125 0 0 1 1.37-.49l1.217.456c.355.133.75.072 1.075-.124.073-.044.146-.087.22-.127.332-.183.582-.495.645-.87l.213-1.281z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+          </svg>
+      );
+
+      // --- Inlined from components/icons/TrashIcon.tsx ---
+      const TrashIcon = ({ className = "w-6 h-6" }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.124-2.033-2.124H8.033c-1.124 0-2.033.944-2.033 2.124v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+          </svg>
+      );
+
+      // --- Updated Component: SourceInfo ---
+      const SourceInfo = ({
+          isLoading,
+          sources,
+          isEditMode,
+          onToggleEditMode,
+          tempSources,
+          onUpdateTempSourceUrl,
+          onRemoveTempSource,
+          onAddTempSource,
+          onSave,
+          onCancel,
+      }) => {
+          const [newSourceUrl, setNewSourceUrl] = useState('');
+
+          const handleAdd = (e) => {
+              e.preventDefault();
+              if (newSourceUrl.trim()) {
+                  onAddTempSource(newSourceUrl.trim());
+                  setNewSourceUrl('');
+              }
+          };
+
+          const getSourceName = (url) => {
+              try {
+                  const parsedUrl = new URL(url);
+                  const path = parsedUrl.pathname;
+                  const filename = decodeURIComponent(path.split('/').pop() || '');
+                  if (filename) return filename;
+                  // If no filename in path, return hostname
+                  return parsedUrl.hostname;
+              } catch (e) {
+                  return url;
+              }
+          };
+
+          const isPdf = (url) => url.toLowerCase().endsWith('.pdf');
+
+          return (
+              <div className="flex flex-col h-full bg-brand-surface rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-3">
+                      <h2 className="text-lg font-semibold text-brand-primary">자료 출처</h2>
+                      <button
+                          onClick={onToggleEditMode}
+                          className="p-1.5 text-brand-text-secondary hover:text-brand-text-primary hover:bg-brand-secondary/50 rounded-full transition-colors"
+                          aria-label={isEditMode ? "Finish editing sources" : "Edit sources"}
+                      >
+                          <GearIcon className="w-5 h-5" />
+                      </button>
+                  </div>
+
+                  {isEditMode ? (
+                      <div className="flex flex-col flex-1 min-h-0">
+                          <p className="text-sm text-brand-text-secondary mb-4">
+                              챗봇이 답변의 기반으로 삼을 PDF 또는 웹페이지 URL을 추가하거나 제거하세요.
+                          </p>
+                          <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-2">
+                              {tempSources.map((source, index) => (
+                                  <div key={index} className="flex items-center gap-2">
+                                      <input
+                                          type="text"
+                                          value={source.url}
+                                          onChange={(e) => onUpdateTempSourceUrl(index, e.target.value)}
+                                          className="flex-1 bg-brand-bg border border-brand-secondary rounded-md py-1.5 px-3 text-sm text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                                          placeholder="Enter URL"
+                                      />
+                                      <button
+                                          onClick={() => onRemoveTempSource(index)}
+                                          className="p-1.5 text-red-400 hover:bg-red-400/20 rounded-full transition-colors"
+                                          aria-label="Remove source"
+                                      >
+                                          <TrashIcon className="w-5 h-5" />
+                                      </button>
+                                  </div>
+                              ))}
+                          </div>
+
+                          <form onSubmit={handleAdd} className="flex gap-2 mt-4">
+                              <input
+                                  type="text"
+                                  value={newSourceUrl}
+                                  onChange={(e) => setNewSourceUrl(e.target.value)}
+                                  className="flex-1 bg-brand-bg border border-brand-secondary rounded-full py-2 px-4 text-sm text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                                  placeholder="URL 추가 (PDF 또는 웹페이지)"
+                              />
+                              <button
+                                  type="submit"
+                                  className="px-4 py-2 bg-brand-primary text-brand-bg rounded-full text-sm font-semibold hover:bg-opacity-90 transition-colors disabled:opacity-50"
+                                  disabled={!newSourceUrl.trim()}
+                              >
+                                  추가
+                              </button>
+                          </form>
+
+                          <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-brand-secondary">
+                              <button onClick={onCancel} className="px-4 py-2 bg-brand-secondary text-brand-text-primary rounded-full text-sm font-semibold hover:bg-opacity-80 transition-colors">
+                                  취소
+                              </button>
+                              <button onClick={onSave} className="px-4 py-2 bg-brand-primary text-brand-bg rounded-full text-sm font-semibold hover:bg-opacity-90 transition-colors">
+                                  저장 및 새로고침
+                              </button>
+                          </div>
+                      </div>
+                  ) : (
+                      <>
+                          {isLoading ? (
+                              <div className="flex flex-col items-center justify-center flex-1">
+                                  <div className="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                                  <p className="text-brand-text-primary">자료 로딩 중...</p>
+                                  <p className="text-sm text-brand-text-secondary">챗봇을 위해 자료를 준비하고 있습니다.</p>
+                              </div>
+                          ) : (
+                              <div className="flex-1 overflow-y-auto">
+                                  <p className="text-sm text-brand-text-secondary mb-4">
+                                      챗봇은 아래 자료들을 기반으로 답변합니다.
+                                  </p>
+                                   <ul className="space-y-3">
+                                      {sources.map((source, index) => {
+                                          const sourceIsPdf = isPdf(source.url);
+                                          return (
+                                          <li key={index} className="flex items-start gap-3 text-brand-text-secondary text-sm">
+                                              <div className="mt-0.5">
+                                                {source.status === 'loading' && <div className="w-5 h-5 border-2 border-brand-secondary border-t-brand-primary rounded-full animate-spin"></div>}
+                                                
+                                                {source.status === 'loaded' && (sourceIsPdf 
+                                                    ? <DocumentIcon className="w-5 h-5 flex-shrink-0 text-green-400" /> 
+                                                    : <LinkIcon className="w-5 h-5 flex-shrink-0 text-green-400" />
+                                                )}
+
+                                                {source.status === 'error' && (sourceIsPdf 
+                                                    ? <DocumentIcon className="w-5 h-5 flex-shrink-0 text-red-400" /> 
+                                                    : <LinkIcon className="w-5 h-5 flex-shrink-0 text-red-400" />
+                                                )}
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                  <span className="text-brand-text-primary font-medium break-words">{getSourceName(source.url)}</span>
+                                                  {source.status === 'error' && <span className="block text-xs text-red-400 mt-1">오류: {source.errorMsg}</span>}
+                                              </div>
+                                          </li>
+                                          );
+                                      })}
+                                  </ul>
+                              </div>
+                          )}
+                      </>
+                  )}
+              </div>
+          );
+      };
       
       // --- Inlined from components/Message.tsx ---
       const Message = ({ message }) => {
@@ -211,8 +355,8 @@
                    {messages.length === 0 && !isParsingDocs && !sourceProvided && (
                         <div className="text-center text-brand-text-secondary p-8 flex flex-col items-center justify-center h-full">
                             <DocumentIcon className="w-12 h-12 mb-4 text-brand-secondary" />
-                            <h3 className="text-xl font-semibold text-brand-text-primary">오류 발생</h3>
-                            <p>문서 로딩에 실패했습니다. 페이지를 새로고침 해주세요.</p>
+                            <h3 className="text-xl font-semibold text-brand-text-primary">자료 없음</h3>
+                            <p>답변의 기반이 될 자료가 없습니다. 좌측 패널에서 자료를 추가해주세요.</p>
                         </div>
                    )}
                    {messages.length === 0 && !isParsingDocs && sourceProvided && (
@@ -251,7 +395,9 @@
           const [currentMessage, setCurrentMessage] = useState('');
           const [isLoading, setIsLoading] = useState(false);
           const [isParsing, setIsParsing] = useState(true);
-          const [discoveredFiles, setDiscoveredFiles] = useState([]);
+          const [sources, setSources] = useState([]);
+          const [isEditMode, setIsEditMode] = useState(false);
+          const [tempSources, setTempSources] = useState([]);
           const [error, setError] = useState(null);
 
           const PDF_BASE_URL = 'https://ggawoos-bot.github.io/chat/pdf/';
@@ -273,7 +419,7 @@
               try {
                   const pdfData = await fetch(url).then(res => {
                       if (!res.ok) {
-                          throw new Error(`Failed to fetch ${url}: ${res.statusText}`);
+                          throw new Error(`Failed to fetch (${res.status})`);
                       }
                       return res.arrayBuffer();
                   });
@@ -288,48 +434,107 @@
                   return fullText;
               } catch (err) {
                   console.error(`Error parsing PDF from ${url}:`, err);
-                  throw new Error(`Failed to parse ${url.split('/').pop()}: ${err.message}`);
+                  throw new Error(err.message || 'Unknown parsing error');
               }
           };
 
+          const parseHtmlFromUrl = async (url) => {
+              try {
+                  // Use a public CORS proxy to bypass browser security restrictions for fetching content.
+                  // This is a workaround for client-side only applications.
+                  // Note: Public proxies can be unreliable and have limitations.
+                  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                  const response = await fetch(proxyUrl);
+                  
+                  if (!response.ok) {
+                      throw new Error(`Failed to fetch page via proxy (${response.status})`);
+                  }
+                  
+                  const htmlText = await response.text();
+                  const parser = new DOMParser();
+                  const doc = parser.parseFromString(htmlText, "text/html");
+                  
+                  // A simple method to extract text. Can be improved by removing irrelevant tags.
+                  doc.body.querySelectorAll('script, style, nav, header, footer, aside').forEach(el => el.remove());
+                  return doc.body.textContent || "";
+              } catch (err) {
+                  console.error(`Error parsing HTML from ${url}:`, err);
+                  // A more generic error message as the proxy introduces other potential failure points.
+                  throw new Error('콘텐츠를 가져올 수 없습니다. URL이 유효한지 또는 일시적인 문제가 아닌지 확인해주세요.');
+              }
+          };
+
+          const loadSources = useCallback(async (sourceList) => {
+              if (!sourceList || sourceList.length === 0) {
+                  setSourceText('');
+                  setSources([]);
+                  setIsParsing(false);
+                  return;
+              }
+
+              setIsParsing(true);
+              setError(null);
+              setSourceText('');
+              setMessages([]);
+
+              const updatedSources = sourceList.map(s => ({ ...s, status: 'loading', errorMsg: undefined }));
+              setSources(updatedSources);
+
+              const parsingPromises = updatedSources.map(async (source, index) => {
+                  try {
+                      const isPdf = source.url.toLowerCase().endsWith('.pdf');
+                      const text = isPdf
+                          ? await parsePdfFromUrl(source.url)
+                          : await parseHtmlFromUrl(source.url);
+
+                      setSources(prev => prev.map((s, i) => i === index ? { ...s, status: 'loaded' } : s));
+                      return text;
+                  } catch (err) {
+                      setSources(prev => prev.map((s, i) => i === index ? { ...s, status: 'error', errorMsg: err.message } : s));
+                      return null;
+                  }
+              });
+              
+              const texts = await Promise.all(parsingPromises);
+              const validTexts = texts.filter(t => t && t.trim() !== '');
+              
+              if (validTexts.length > 0) {
+                  const combinedText = validTexts.join('\n--- END OF DOCUMENT ---\n\n--- START OF DOCUMENT ---\n');
+                  setSourceText(combinedText);
+              } else {
+                  setSourceText('');
+                  if(sources.every(s => s.status === 'error')) {
+                    setError("모든 자료를 불러오는 데 실패했습니다. URL을 확인하거나 다른 자료를 시도해주세요.");
+                  }
+              }
+
+              setIsParsing(false);
+          }, []);
+
           useEffect(() => {
-            const discoverAndParsePdfs = async () => {
-                setIsParsing(true);
-                setError(null);
-                setSourceText('');
-                setMessages([]);
-                setDiscoveredFiles([]);
+              const discoverAndLoadInitialPdfs = async () => {
+                  setIsParsing(true);
+                  try {
+                      const manifestUrl = `${PDF_BASE_URL}manifest.json`;
+                      const manifestResponse = await fetch(manifestUrl);
+                      if (!manifestResponse.ok) throw new Error(`Could not load manifest.json`);
+                      
+                      const pdfFiles = await manifestResponse.json();
+                      if (!Array.isArray(pdfFiles)) throw new Error("Invalid manifest.json format.");
+                      
+                      const initialSources = pdfFiles.map(file => ({ url: PDF_BASE_URL + file }));
+                      setTempSources(initialSources);
+                      loadSources(initialSources);
 
-                try {
-                    // Step 1: Fetch the manifest file to discover PDF files
-                    const manifestUrl = `${PDF_BASE_URL}manifest.json`;
-                    const manifestResponse = await fetch(manifestUrl);
-                    if (!manifestResponse.ok) {
-                        throw new Error(`Could not load file list (manifest.json). Status: ${manifestResponse.statusText}`);
-                    }
-                    const pdfFiles = await manifestResponse.json();
-
-                    if (!Array.isArray(pdfFiles) || pdfFiles.length === 0) {
-                        throw new Error("No PDF files found in manifest.json or the file is invalid.");
-                    }
-                    setDiscoveredFiles(pdfFiles);
-
-                    // Step 2: Parse the discovered PDF files
-                    const parsingPromises = pdfFiles.map(file => parsePdfFromUrl(PDF_BASE_URL + file));
-                    const texts = await Promise.all(parsingPromises);
-                    const combinedText = texts.join('\n--- END OF DOCUMENT ---\n\n--- START OF DOCUMENT ---\n');
-                    setSourceText(combinedText);
-                } catch (err) {
-                    console.error("Error loading PDFs:", err);
-                    setError(err instanceof Error ? err.message : 'An unknown error occurred during loading.');
-                    setDiscoveredFiles([]); // Clear file list on error
-                } finally {
-                    setIsParsing(false);
-                }
-            };
-            
-            discoverAndParsePdfs();
-        }, []); // Empty dependency array ensures this runs only once on mount
+                  } catch (err) {
+                      console.error("Error loading initial PDFs:", err);
+                      setError(err.message);
+                      setSources([]);
+                      setIsParsing(false);
+                  }
+              };
+              discoverAndLoadInitialPdfs();
+          }, [loadSources]);
 
           const handleSendMessage = useCallback(async (e) => {
               e.preventDefault();
@@ -361,16 +566,37 @@
                   setError(`Failed to get response: ${errorMessage}`);
                   setMessages(prev => {
                       const newMessages = [...prev];
-                      if(newMessages[newMessages.length - 1].role === Role.MODEL) {
-                        newMessages.pop();
-                      }
+                      if(newMessages[newMessages.length - 1].role === Role.MODEL) newMessages.pop();
                       return [...newMessages, { role: Role.MODEL, content: `Sorry, I encountered an error. ${errorMessage}` }];
                   });
-
               } finally {
                   setIsLoading(false);
               }
           }, [chatSession, currentMessage, isLoading]);
+
+          const handleToggleEditMode = () => {
+              if (!isEditMode) setTempSources(sources.map(s => ({ url: s.url })));
+              setIsEditMode(!isEditMode);
+          };
+
+          const handleCancelEdit = () => setIsEditMode(false);
+          
+          const handleSaveSources = () => {
+              setIsEditMode(false);
+              loadSources(tempSources);
+          };
+
+          const handleAddTempSource = (url) => {
+              if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                setTempSources(prev => [...prev, { url }]);
+              } else {
+                alert('Please enter a valid URL starting with http:// or https://');
+              }
+          };
+          
+          const handleRemoveTempSource = (index) => setTempSources(prev => prev.filter((_, i) => i !== index));
+
+          const handleUpdateTempSourceUrl = (index, url) => setTempSources(prev => prev.map((s, i) => i === index ? { ...s, url } : s));
 
           return (
               <div className="h-screen w-screen flex flex-col p-4 gap-4 bg-brand-bg">
@@ -379,15 +605,21 @@
                   </header>
                   
                   <main className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
-                      {/* Source Info Column */}
                       <div className="flex flex-col min-h-0">
                            <SourceInfo
                                 isLoading={isParsing}
-                                files={discoveredFiles}
+                                sources={sources}
+                                isEditMode={isEditMode}
+                                onToggleEditMode={handleToggleEditMode}
+                                tempSources={tempSources}
+                                onUpdateTempSourceUrl={handleUpdateTempSourceUrl}
+                                onRemoveTempSource={handleRemoveTempSource}
+                                onAddTempSource={handleAddTempSource}
+                                onSave={handleSaveSources}
+                                onCancel={handleCancelEdit}
                            />
                       </div>
                       
-                      {/* Chat Column */}
                       <div className="flex flex-col h-full bg-brand-surface rounded-lg min-h-0">
                           <div className="flex-1 flex flex-col min-h-0">
                             <h2 className="text-lg font-semibold text-brand-primary p-4 border-b border-brand-secondary">질문하기</h2>
