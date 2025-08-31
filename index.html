@@ -562,31 +562,6 @@
               setIsParsing(false);
           }, []);
           
-          const discoverAndLoadInitialPdfs = useCallback(async () => {
-              setIsParsing(true);
-              try {
-                  const manifestUrl = `${PDF_BASE_URL}manifest.json`;
-                  const manifestResponse = await fetch(manifestUrl);
-                  if (!manifestResponse.ok) throw new Error(`Could not load manifest.json`);
-                  
-                  const pdfFiles = await manifestResponse.json();
-                  if (!Array.isArray(pdfFiles)) throw new Error("Invalid manifest.json format.");
-                  
-                  const initialSources = pdfFiles.map(file => {
-                    const url = PDF_BASE_URL + file;
-                    return { name: getSourceName(url), url };
-                  });
-                  setTempSources(initialSources);
-                  loadSources(initialSources);
-
-              } catch (err) {
-                  console.error("Error loading initial PDFs:", err);
-                  setError(err.message);
-                  setSources([]);
-                  setIsParsing(false);
-              }
-          }, [loadSources]);
-
           useEffect(() => {
               const loadInitialData = async () => {
                   try {
@@ -594,21 +569,28 @@
                       if (docSnap.exists()) {
                           const data = docSnap.data();
                           const savedSources = data.sourceList;
-                          if (Array.isArray(savedSources) && savedSources.length > 0) {
+                          // Load sources if it's an array, otherwise load empty.
+                          if (Array.isArray(savedSources)) {
                               loadSources(savedSources);
-                              return;
+                          } else {
+                              console.warn("Firestore 'sourceList' is not an array. Loading empty list.");
+                              loadSources([]);
                           }
+                      } else {
+                          // Document doesn't exist, so there are no sources.
+                          loadSources([]);
                       }
-                      // If doc doesn't exist or is empty, load from manifest
-                      await discoverAndLoadInitialPdfs();
                   } catch (e) {
-                      console.error("Failed to load sources from Firebase, falling back to default.", e);
-                      setError("Firebase에서 자료를 불러오는 데 실패했습니다. 기본값으로 대체합니다.");
-                      await discoverAndLoadInitialPdfs();
+                      console.error("Failed to load sources from Firebase.", e);
+                      setError("Firebase에서 자료를 불러오는 데 실패했습니다.");
+                      // Ensure state is cleared and parsing is stopped on error
+                      setSourceText('');
+                      setSources([]);
+                      setIsParsing(false);
                   }
               };
               loadInitialData();
-          }, [discoverAndLoadInitialPdfs, loadSources, sourcesDocRef]);
+          }, [loadSources, sourcesDocRef]);
 
           const handleSendMessage = useCallback(async (e) => {
               e.preventDefault();
