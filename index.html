@@ -444,7 +444,7 @@
           const db = useMemo(() => firebase.firestore(firebaseApp), [firebaseApp]);
           const sourcesDocRef = useMemo(() => db.collection('settings').doc('sources'), [db]);
 
-          const PDF_BASE_URL = 'https://ggawoos-bot.github.io/chat/pdf/';
+          const PDF_BASE_URL = 'https://ggawoos-bot.github.io/chat3/pdf/';
 
           const chatSession = useMemo(() => {
               if (sourceText.trim()) {
