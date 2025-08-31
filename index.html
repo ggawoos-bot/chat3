@@ -630,31 +630,77 @@
           
           useEffect(() => {
               const loadInitialData = async () => {
-                  try {
-                      const docSnap = await sourcesDocRef.get();
-                      if (docSnap.exists) {
-                          const data = docSnap.data();
-                          const savedSources = data.sourceList;
-                          // Load sources if it's an array, otherwise load empty.
-                          if (Array.isArray(savedSources)) {
-                              loadSources(savedSources);
-                          } else {
-                              console.warn("Firestore 'sourceList' is not an array. Loading empty list.");
-                              loadSources([]);
+                  setIsParsing(true);
+                  setError(null);
+                  setSourceText('');
+                  setMessages([]);
+                  
+                  // This is the base URL from the user's first example file, which they want to emulate.
+                  const PDF_BASE_URL_FOR_MANIFEST = 'https://ggawoos-bot.github.io/chat/pdf/';
+
+                  const fetchManifestPdfs = async () => {
+                      try {
+                          const manifestUrl = `${PDF_BASE_URL_FOR_MANIFEST}manifest.json`;
+                          const manifestResponse = await fetch(manifestUrl);
+                          if (!manifestResponse.ok) {
+                              console.error(`Could not load manifest.json. Status: ${manifestResponse.statusText}`);
+                              // Don't throw, just return empty so other sources can load.
+                              return [];
                           }
-                      } else {
-                          // Document doesn't exist, so there are no sources.
-                          loadSources([]);
+                          const pdfFiles = await manifestResponse.json();
+
+                          if (!Array.isArray(pdfFiles)) {
+                              console.error("Invalid manifest.json format. Expected an array of filenames.");
+                              return [];
+                          }
+
+                          // Create source objects from the manifest file list
+                          return pdfFiles.map(file => {
+                              const url = PDF_BASE_URL_FOR_MANIFEST + file;
+                              return { name: getSourceName(url), url: url };
+                          });
+                      } catch (err) {
+                          console.error("Error fetching or parsing manifest PDFs:", err);
+                          setError("기본 PDF 자료 목록(manifest.json)을 불러오는 데 실패했습니다.");
+                          return []; 
                       }
-                  } catch (e) {
-                      console.error("Failed to load sources from Firebase.", e);
-                      setError("Firebase에서 자료를 불러오는 데 실패했습니다.");
-                      // Ensure state is cleared and parsing is stopped on error
-                      setSourceText('');
-                      setSources([]);
-                      setIsParsing(false);
-                  }
+                  };
+
+                  const fetchFirestoreSources = async () => {
+                      try {
+                          const docSnap = await sourcesDocRef.get();
+                          if (docSnap.exists) {
+                              const data = docSnap.data();
+                              const savedSources = data.sourceList;
+                              if (Array.isArray(savedSources)) {
+                                  // Per user request, ignore GitHub URLs from Firestore settings,
+                                  // as they are now handled exclusively by the manifest logic above.
+                                  return savedSources.filter(source => 
+                                      !source.url.toLowerCase().includes('github.com')
+                                  );
+                              }
+                          }
+                          return []; // No document or invalid data, return empty.
+                      } catch (e) {
+                          console.error("Failed to load sources from Firebase.", e);
+                          setError("Firebase에서 추가 자료를 불러오는 데 실패했습니다.");
+                          return [];
+                      }
+                  };
+                  
+                  // Run both fetches in parallel for efficiency
+                  const [manifestPdfs, firestoreOtherSources] = await Promise.all([
+                      fetchManifestPdfs(),
+                      fetchFirestoreSources()
+                  ]);
+                  
+                  // Combine the hardcoded PDF list with the dynamic list from Firestore
+                  const combinedSources = [...manifestPdfs, ...firestoreOtherSources];
+
+                  // Load all the collected sources
+                  loadSources(combinedSources);
               };
+
               loadInitialData();
           }, [loadSources, sourcesDocRef]);
 
