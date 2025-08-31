@@ -182,7 +182,7 @@
               }
           };
 
-          const isPdf = (url) => url.toLowerCase().endsWith('.pdf');
+          const isPdf = (url) => url.toLowerCase().endsWith('.pdf') || url.toLowerCase().includes('drive.google.com');
 
           return (
               <div className="flex flex-col h-full bg-brand-surface rounded-lg p-4">
@@ -473,12 +473,24 @@
 
           const parsePdfFromUrl = async (url) => {
               try {
-                  const pdfData = await fetch(url).then(res => {
-                      if (!res.ok) {
-                          throw new Error(`Failed to fetch (${res.status})`);
-                      }
-                      return res.arrayBuffer();
-                  });
+                  let fetchUrl = url;
+                  const googleDriveRegex = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/;
+                  const match = url.match(googleDriveRegex);
+
+                  if (match && match[1]) {
+                      const fileId = match[1];
+                      fetchUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+                  }
+
+                  // Using a CORS proxy to fetch the PDF content
+                  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(fetchUrl)}`;
+                  const response = await fetch(proxyUrl);
+                  
+                  if (!response.ok) {
+                      throw new Error(`Failed to fetch PDF via proxy (${response.status})`);
+                  }
+
+                  const pdfData = await response.arrayBuffer();
                   const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(pdfData) }).promise;
                   let fullText = '';
                   for (let i = 1; i <= pdf.numPages; i++) {
@@ -490,7 +502,13 @@
                   return fullText;
               } catch (err) {
                   console.error(`Error parsing PDF from ${url}:`, err);
-                  throw new Error(err.message || 'Unknown parsing error');
+                  let errorMessage = 'PDF를 파싱하는 중 오류가 발생했습니다.';
+                  if (url.includes('drive.google.com')) {
+                      errorMessage = 'Google Drive PDF를 불러오지 못했습니다. 파일이 "링크가 있는 모든 사용자"에게 공개적으로 공유되었는지 확인해주세요.';
+                  } else if (err.message) {
+                      errorMessage = err.message;
+                  }
+                  throw new Error(errorMessage);
               }
           };
 
@@ -558,7 +576,7 @@
 
               const parsingPromises = updatedSources.map(async (source, index) => {
                   try {
-                      const isPdf = source.url.toLowerCase().endsWith('.pdf');
+                      const isPdf = source.url.toLowerCase().endsWith('.pdf') || source.url.includes('drive.google.com');
                       const text = isPdf
                           ? await parsePdfFromUrl(source.url)
                           : await parseHtmlFromUrl(source.url);
