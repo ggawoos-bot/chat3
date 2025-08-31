@@ -36,6 +36,9 @@
       // Set worker source for pdf.js from CDN
       pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
     </script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
   </head>
   <body class="bg-brand-bg text-brand-text-primary">
     <div id="root"></div>
@@ -151,6 +154,7 @@
           onAddTempSource,
           onSave,
           onCancel,
+          onReset,
       }) => {
           const [newSourceName, setNewSourceName] = useState('');
           const [newSourceUrl, setNewSourceUrl] = useState('');
@@ -196,7 +200,7 @@
                   {isEditMode ? (
                       <div className="flex flex-col flex-1 min-h-0">
                           <p className="text-sm text-brand-text-secondary mb-4">
-                              챗봇이 답변의 기반으로 삼을 자료의 이름과 URL을 수정하세요.
+                              자료를 수정하면 현재 채팅 세션이 초기화됩니다. 변경사항은 모든 사용자에게 적용되며 영구적으로 저장됩니다.
                           </p>
                           <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-2">
                               {tempSources.map((source, index) => (
@@ -251,6 +255,9 @@
                           </form>
 
                           <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-brand-secondary">
+                              <button onClick={onReset} className="px-4 py-2 bg-red-600/80 text-white rounded-full text-sm font-semibold hover:bg-red-600 transition-colors">
+                                  기본값으로
+                              </button>
                               <button onClick={onCancel} className="px-4 py-2 bg-brand-secondary text-brand-text-primary rounded-full text-sm font-semibold hover:bg-opacity-80 transition-colors">
                                   취소
                               </button>
@@ -417,6 +424,26 @@
           const [tempSources, setTempSources] = useState([]);
           const [error, setError] = useState(null);
 
+          const firebaseConfig = {
+            apiKey: "AIzaSyAvdOyBT1Zk9rZ79nP2RvdhpfpIQjGfw8Q",
+            authDomain: "chat-4c3a7.firebaseapp.com",
+            projectId: "chat-4c3a7",
+            storageBucket: "chat-4c3a7.appspot.com",
+            messagingSenderId: "995636644973",
+            appId: "1:995636644973:web:59554144cbaad5d1444364",
+            measurementId: "G-9T5TLP4SF1"
+          };
+
+          const firebaseApp = useMemo(() => {
+              if (!firebase.apps.length) {
+                  return firebase.initializeApp(firebaseConfig);
+              }
+              return firebase.app();
+          }, []);
+
+          const db = useMemo(() => firebase.firestore(firebaseApp), [firebaseApp]);
+          const sourcesDocRef = useMemo(() => db.collection('settings').doc('sources'), [db]);
+
           const PDF_BASE_URL = 'https://ggawoos-bot.github.io/chat/pdf/';
 
           const chatSession = useMemo(() => {
@@ -438,7 +465,6 @@
                   const path = parsedUrl.pathname;
                   const filename = decodeURIComponent(path.split('/').pop() || '');
                   if (filename) return filename;
-                  // If no filename in path, return hostname
                   return parsedUrl.hostname;
               } catch (e) {
                   return url;
@@ -470,7 +496,6 @@
 
           const parseHtmlFromUrl = async (url) => {
               try {
-                  // Use a public CORS proxy to bypass browser security restrictions for fetching content.
                   const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
                   const response = await fetch(proxyUrl);
                   
@@ -536,34 +561,54 @@
 
               setIsParsing(false);
           }, []);
+          
+          const discoverAndLoadInitialPdfs = useCallback(async () => {
+              setIsParsing(true);
+              try {
+                  const manifestUrl = `${PDF_BASE_URL}manifest.json`;
+                  const manifestResponse = await fetch(manifestUrl);
+                  if (!manifestResponse.ok) throw new Error(`Could not load manifest.json`);
+                  
+                  const pdfFiles = await manifestResponse.json();
+                  if (!Array.isArray(pdfFiles)) throw new Error("Invalid manifest.json format.");
+                  
+                  const initialSources = pdfFiles.map(file => {
+                    const url = PDF_BASE_URL + file;
+                    return { name: getSourceName(url), url };
+                  });
+                  setTempSources(initialSources);
+                  loadSources(initialSources);
+
+              } catch (err) {
+                  console.error("Error loading initial PDFs:", err);
+                  setError(err.message);
+                  setSources([]);
+                  setIsParsing(false);
+              }
+          }, [loadSources]);
 
           useEffect(() => {
-              const discoverAndLoadInitialPdfs = async () => {
-                  setIsParsing(true);
+              const loadInitialData = async () => {
                   try {
-                      const manifestUrl = `${PDF_BASE_URL}manifest.json`;
-                      const manifestResponse = await fetch(manifestUrl);
-                      if (!manifestResponse.ok) throw new Error(`Could not load manifest.json`);
-                      
-                      const pdfFiles = await manifestResponse.json();
-                      if (!Array.isArray(pdfFiles)) throw new Error("Invalid manifest.json format.");
-                      
-                      const initialSources = pdfFiles.map(file => {
-                        const url = PDF_BASE_URL + file;
-                        return { name: getSourceName(url), url };
-                      });
-                      setTempSources(initialSources);
-                      loadSources(initialSources);
-
-                  } catch (err) {
-                      console.error("Error loading initial PDFs:", err);
-                      setError(err.message);
-                      setSources([]);
-                      setIsParsing(false);
+                      const docSnap = await sourcesDocRef.get();
+                      if (docSnap.exists()) {
+                          const data = docSnap.data();
+                          const savedSources = data.sourceList;
+                          if (Array.isArray(savedSources) && savedSources.length > 0) {
+                              loadSources(savedSources);
+                              return;
+                          }
+                      }
+                      // If doc doesn't exist or is empty, load from manifest
+                      await discoverAndLoadInitialPdfs();
+                  } catch (e) {
+                      console.error("Failed to load sources from Firebase, falling back to default.", e);
+                      setError("Firebase에서 자료를 불러오는 데 실패했습니다. 기본값으로 대체합니다.");
+                      await discoverAndLoadInitialPdfs();
                   }
               };
-              discoverAndLoadInitialPdfs();
-          }, [loadSources]);
+              loadInitialData();
+          }, [discoverAndLoadInitialPdfs, loadSources, sourcesDocRef]);
 
           const handleSendMessage = useCallback(async (e) => {
               e.preventDefault();
@@ -612,16 +657,46 @@
 
           const handleCancelEdit = () => setIsEditMode(false);
           
-          const handleSaveSources = () => {
-              setIsEditMode(false);
-              loadSources(tempSources);
+          const handleSaveSources = async () => {
+              try {
+                  await sourcesDocRef.set({ sourceList: tempSources });
+                  setIsEditMode(false);
+                  loadSources(tempSources);
+              } catch (e) {
+                  console.error("Failed to save sources to Firebase:", e);
+                  setError("Firebase에 자료를 저장하는 데 실패했습니다. 다시 시도해주세요.");
+              }
+          };
+
+          const handleResetSources = async () => {
+              if (window.confirm('정말로 자료 출처를 모든 사용자의 기본값으로 되돌리시겠습니까? 저장된 변경사항이 영구적으로 사라집니다.')) {
+                  try {
+                      const manifestUrl = `${PDF_BASE_URL}manifest.json`;
+                      const manifestResponse = await fetch(manifestUrl);
+                      if (!manifestResponse.ok) throw new Error(`Could not load manifest.json`);
+                      const pdfFiles = await manifestResponse.json();
+                      if (!Array.isArray(pdfFiles)) throw new Error("Invalid manifest.json format.");
+                      
+                      const defaultSources = pdfFiles.map(file => {
+                          const url = PDF_BASE_URL + file;
+                          return { name: getSourceName(url), url };
+                      });
+
+                      await sourcesDocRef.set({ sourceList: defaultSources });
+                      
+                      window.location.reload();
+                  } catch (e) {
+                      console.error("Failed to reset sources in Firebase:", e);
+                      setError("Firebase에서 자료를 초기화하는 데 실패했습니다.");
+                  }
+              }
           };
 
           const handleAddTempSource = (name, url) => {
               if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
                 setTempSources(prev => [...prev, { name, url }]);
               } else {
-                alert('Please enter a valid URL starting with http:// or https://');
+                alert('유효한 URL을 입력해주세요 (http:// 또는 https:// 로 시작)');
               }
           };
           
@@ -650,6 +725,7 @@
                                 onAddTempSource={handleAddTempSource}
                                 onSave={handleSaveSources}
                                 onCancel={handleCancelEdit}
+                                onReset={handleResetSources}
                            />
                       </div>
                       
