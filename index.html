@@ -483,13 +483,23 @@
                       fetchUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
                   }
 
-                  // Handle GitHub HTML view links (e.g. .../blob/main/...)
+                  // Handle GitHub URLs
+                  // Specific rule for ggawoos-bot/chat3 repository non-blob URLs
+                  const ggawoosBotRegex = /^https:\/\/github\.com\/ggawoos-bot\/chat3\/(?!blob\/)(.+)$/;
+                  const ggawoosMatch = url.match(ggawoosBotRegex);
+                  
+                  // Generic rule for standard GitHub blob URLs
                   const githubRegex = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/blob\/(.+)$/;
                   const githubMatch = url.match(githubRegex);
-                  if (githubMatch) {
-                      // Replaces github.com with raw.githubusercontent.com and removes '/blob' segment
+
+                  if (ggawoosMatch) {
+                      // Constructs the raw content URL assuming the 'main' branch for the specific repo
+                      fetchUrl = `https://raw.githubusercontent.com/ggawoos-bot/chat3/main/${ggawoosMatch[1]}`;
+                  } else if (githubMatch) {
+                      // Replaces github.com with raw.githubusercontent.com and removes '/blob' segment for any repo
                       fetchUrl = `https://raw.githubusercontent.com/${githubMatch[1]}/${githubMatch[2]}`;
                   }
+
 
                   // Using a CORS proxy to fetch the PDF content
                   const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(fetchUrl)}`;
