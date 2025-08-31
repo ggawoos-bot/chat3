@@ -474,12 +474,21 @@
           const parsePdfFromUrl = async (url) => {
               try {
                   let fetchUrl = url;
+                  
+                  // Handle Google Drive links
                   const googleDriveRegex = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/;
-                  const match = url.match(googleDriveRegex);
-
-                  if (match && match[1]) {
-                      const fileId = match[1];
+                  const googleMatch = url.match(googleDriveRegex);
+                  if (googleMatch && googleMatch[1]) {
+                      const fileId = googleMatch[1];
                       fetchUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+                  }
+
+                  // Handle GitHub HTML view links (e.g. .../blob/main/...)
+                  const githubRegex = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/blob\/(.+)$/;
+                  const githubMatch = url.match(githubRegex);
+                  if (githubMatch) {
+                      // Replaces github.com with raw.githubusercontent.com and removes '/blob' segment
+                      fetchUrl = `https://raw.githubusercontent.com/${githubMatch[1]}/${githubMatch[2]}`;
                   }
 
                   // Using a CORS proxy to fetch the PDF content
@@ -503,8 +512,12 @@
               } catch (err) {
                   console.error(`Error parsing PDF from ${url}:`, err);
                   let errorMessage = 'PDF를 파싱하는 중 오류가 발생했습니다.';
-                  if (url.includes('drive.google.com')) {
+                  if (err.name === 'InvalidPDFException') {
+                      errorMessage = '유효하지 않은 PDF 파일입니다. URL이 PDF 파일을 직접 가리키는지 확인해주세요 (예: 웹페이지가 아닌 Raw 파일 링크).';
+                  } else if (url.includes('drive.google.com')) {
                       errorMessage = 'Google Drive PDF를 불러오지 못했습니다. 파일이 "링크가 있는 모든 사용자"에게 공개적으로 공유되었는지 확인해주세요.';
+                  } else if (url.includes('github.com')) {
+                      errorMessage = 'GitHub PDF를 불러오지 못했습니다. 파일의 "Raw" 버전에 대한 직접 링크를 사용했는지 확인해주세요.';
                   } else if (err.message) {
                       errorMessage = err.message;
                   }
@@ -576,7 +589,7 @@
 
               const parsingPromises = updatedSources.map(async (source, index) => {
                   try {
-                      const isPdf = source.url.toLowerCase().endsWith('.pdf') || source.url.includes('drive.google.com');
+                      const isPdf = source.url.toLowerCase().endsWith('.pdf') || source.url.includes('drive.google.com') || source.url.includes('github.com');
                       const text = isPdf
                           ? await parsePdfFromUrl(source.url)
                           : await parseHtmlFromUrl(source.url);
